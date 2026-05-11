@@ -15,15 +15,22 @@ export function ProjectsPage() {
   return (
     <Layout>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Projects</h1>
-        <button className="rounded bg-indigo-600 px-4 py-2 text-white" onClick={() => create.mutate()}>Create</button>
+        <h1 className="text-2xl font-semibold">Проекты</h1>
+        <button className="rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-60" onClick={() => create.mutate()} disabled={create.isPending}>
+          {create.isPending ? 'Создание...' : 'Создать проект'}
+        </button>
       </div>
+      {projects.isLoading && <p className="mt-6 text-slate-500">Загрузка...</p>}
+      {!projects.isLoading && !projects.data?.items.length && (
+        <div className="mt-6 rounded border bg-white p-6 text-slate-500">В этом workspace пока нет проектов.</div>
+      )}
       <div className="mt-6 grid gap-3 md:grid-cols-3">
         {projects.data?.items.map((project) => (
-          <Link key={project.id} className="rounded border bg-white p-4 shadow-sm hover:border-indigo-300" to={`/projects/${project.id}`}>
+          <div key={project.id} className="rounded border bg-white p-4 shadow-sm">
             <h2 className="font-medium">{project.name}</h2>
             <p className="mt-1 text-sm text-slate-500">{project.description}</p>
-          </Link>
+            <Link className="mt-4 inline-flex rounded bg-slate-900 px-3 py-2 text-sm text-white" to={`/projects/${project.id}`}>Открыть проект</Link>
+          </div>
         ))}
       </div>
     </Layout>
