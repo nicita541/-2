@@ -8,6 +8,7 @@ public sealed class TaskItemCreateRequestValidator : IRequestValidator<TaskItemC
     public IReadOnlyList<string> Validate(TaskItemCreateRequest request)
     {
         var errors = new List<string>();
+        if (request.ProjectId == Guid.Empty) errors.Add("ProjectId is required.");
         if (request.BoardColumnId == Guid.Empty) errors.Add("BoardColumnId is required.");
         if (string.IsNullOrWhiteSpace(request.Title)) errors.Add("Title is required.");
         if (request.Title?.Length > 500) errors.Add("Title must be 500 characters or fewer.");
@@ -22,6 +23,7 @@ public sealed class TaskItemUpdateRequestValidator : IRequestValidator<TaskItemU
     public IReadOnlyList<string> Validate(TaskItemUpdateRequest request)
     {
         var errors = new List<string>();
+        if (request.ProjectId == Guid.Empty) errors.Add("ProjectId is required.");
         if (request.BoardColumnId == Guid.Empty) errors.Add("BoardColumnId is required.");
         if (string.IsNullOrWhiteSpace(request.Title)) errors.Add("Title is required.");
         if (request.Title?.Length > 500) errors.Add("Title must be 500 characters or fewer.");

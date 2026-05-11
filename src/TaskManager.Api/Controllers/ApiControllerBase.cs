@@ -18,7 +18,7 @@ public abstract class ApiControllerBase : ControllerBase
         {
             "not_found" => NotFound(ToEnvelope(result.Error)),
             "unauthorized" => Unauthorized(ToEnvelope(result.Error)),
-            "forbidden" => Forbid(),
+            "forbidden" => StatusCode(StatusCodes.Status403Forbidden, ToEnvelope(result.Error)),
             "conflict" => Conflict(ToEnvelope(result.Error)),
             _ => BadRequest(ToEnvelope(result.Error ?? new Error("bad_request", "Bad request")))
         };
@@ -32,7 +32,7 @@ public abstract class ApiControllerBase : ControllerBase
         {
             "not_found" => NotFound(ToEnvelope(result.Error)),
             "unauthorized" => Unauthorized(ToEnvelope(result.Error)),
-            "forbidden" => Forbid(),
+            "forbidden" => StatusCode(StatusCodes.Status403Forbidden, ToEnvelope(result.Error)),
             "conflict" => Conflict(ToEnvelope(result.Error)),
             _ => BadRequest(ToEnvelope(result.Error ?? new Error("bad_request", "Bad request")))
         };

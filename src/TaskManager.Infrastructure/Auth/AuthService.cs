@@ -11,7 +11,7 @@ public sealed class AuthService(IApplicationDbContext db, IPasswordHasher passwo
     public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
-        var exists = db.Users.Any(x => x.Email == email);
+        var exists = await db.AnyAsync(db.Users.Where(x => x.Email == email), cancellationToken);
         if (exists) return Result<AuthResponse>.Failure(Error.Conflict("Email is already registered."));
 
         var user = new ApplicationUser { Email = email, DisplayName = request.DisplayName, PasswordHash = string.Empty };
@@ -24,7 +24,7 @@ public sealed class AuthService(IApplicationDbContext db, IPasswordHasher passwo
     public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
-        var user = db.Users.FirstOrDefault(x => x.Email == email);
+        var user = await db.FirstOrDefaultAsync(db.Users.Where(x => x.Email == email), cancellationToken);
         if (user is null) return Result<AuthResponse>.Failure(Error.Unauthorized("Invalid email or password."));
 
         if (!passwordHasher.VerifyPassword(user, user.PasswordHash, request.Password))

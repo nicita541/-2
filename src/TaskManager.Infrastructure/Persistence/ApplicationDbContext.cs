@@ -35,6 +35,18 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public new void Add<TEntity>(TEntity entity) where TEntity : class => Set<TEntity>().Add(entity);
 
+    public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken = default) =>
+        EntityFrameworkQueryableExtensions.AnyAsync(query, cancellationToken);
+
+    public Task<T?> FirstOrDefaultAsync<T>(IQueryable<T> query, CancellationToken cancellationToken = default) =>
+        EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(query, cancellationToken);
+
+    public Task<List<T>> ToListAsync<T>(IQueryable<T> query, CancellationToken cancellationToken = default) =>
+        EntityFrameworkQueryableExtensions.ToListAsync(query, cancellationToken);
+
+    public Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken cancellationToken = default) =>
+        EntityFrameworkQueryableExtensions.CountAsync(query, cancellationToken);
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

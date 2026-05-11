@@ -4,6 +4,8 @@ namespace TaskManager.Domain.Entities;
 
 public sealed class TaskItem : Entity
 {
+    public Guid ProjectId { get; set; }
+    public Project? Project { get; set; }
     public Guid BoardColumnId { get; set; }
     public BoardColumn? BoardColumn { get; set; }
     public Guid? ParentTaskItemId { get; set; }

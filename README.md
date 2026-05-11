@@ -51,6 +51,15 @@ dotnet ef migrations add InitialCreate --project src/TaskManager.Infrastructure 
 dotnet ef database update --project src/TaskManager.Infrastructure --startup-project src/TaskManager.Api
 ```
 
+If global tools are blocked by NuGet SSL/VPN issues, retry with a local manifest:
+
+```powershell
+dotnet new tool-manifest
+dotnet tool install dotnet-ef --version 9.0.4
+dotnet tool run dotnet-ef migrations add InitialCreate --project src/TaskManager.Infrastructure --startup-project src/TaskManager.Api --output-dir Persistence/Migrations
+dotnet tool run dotnet-ef database update --project src/TaskManager.Infrastructure --startup-project src/TaskManager.Api
+```
+
 Run the API:
 
 ```powershell
@@ -97,3 +106,5 @@ API: `http://localhost:8080`
 - Add authorization policies before exposing workspace data to untrusted clients.
 - Store uploaded files outside the database; current attachments model stores metadata and URL.
 - Add migrations to source control after the first database model is finalized.
+- `TaskItem` contains `ProjectId`; clients must send it when creating/updating task items.
+- Service methods enforce workspace/project permissions through `IPermissionService`.

@@ -12,7 +12,9 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Title).HasMaxLength(500).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(10000);
-        builder.HasIndex(x => new { x.BoardColumnId, x.ParentTaskItemId, x.Position });
+        builder.HasIndex(x => x.ProjectId);
+        builder.HasIndex(x => new { x.ProjectId, x.BoardColumnId, x.ParentTaskItemId, x.Position });
+        builder.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.BoardColumn).WithMany(x => x.TaskItems).HasForeignKey(x => x.BoardColumnId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(x => x.ParentTaskItem).WithMany(x => x.Subtasks).HasForeignKey(x => x.ParentTaskItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.Assignee).WithMany().HasForeignKey(x => x.AssigneeId).OnDelete(DeleteBehavior.SetNull);

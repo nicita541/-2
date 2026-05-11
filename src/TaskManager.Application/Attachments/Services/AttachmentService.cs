@@ -5,10 +5,15 @@ using TaskManager.Domain.Entities;
 
 namespace TaskManager.Application.Attachments.Services;
 
-public sealed class AttachmentService(IApplicationDbContext db, ICurrentUserService currentUser) : IAttachmentService
+public sealed class AttachmentService(IApplicationDbContext db, ICurrentUserService currentUser, IPermissionService permissions) : IAttachmentService
 {
     public async Task<Result<AttachmentResponse>> CreateAsync(AttachmentCreateRequest request, CancellationToken cancellationToken)
     {
+        if (!await permissions.CanEditTaskItemAsync(request.TaskItemId, currentUser.UserId, cancellationToken))
+        {
+            return Result<AttachmentResponse>.Failure(Error.Forbidden("You cannot attach files to this task item."));
+        }
+
         var attachment = new Attachment
         {
             TaskItemId = request.TaskItemId,

@@ -5,10 +5,15 @@ using TaskManager.Domain.Entities;
 
 namespace TaskManager.Application.Checklist.Services;
 
-public sealed class ChecklistService(IApplicationDbContext db) : IChecklistService
+public sealed class ChecklistService(IApplicationDbContext db, ICurrentUserService currentUser, IPermissionService permissions) : IChecklistService
 {
     public async Task<Result<ChecklistItemResponse>> CreateAsync(ChecklistItemCreateRequest request, CancellationToken cancellationToken)
     {
+        if (!await permissions.CanEditTaskItemAsync(request.TaskItemId, currentUser.UserId, cancellationToken))
+        {
+            return Result<ChecklistItemResponse>.Failure(Error.Forbidden("You cannot edit checklist on this task item."));
+        }
+
         var item = new ChecklistItem { TaskItemId = request.TaskItemId, Text = request.Text, Position = request.Position };
         db.Add(item);
         await db.SaveChangesAsync(cancellationToken);
@@ -17,8 +22,13 @@ public sealed class ChecklistService(IApplicationDbContext db) : IChecklistServi
 
     public async Task<Result<ChecklistItemResponse>> UpdateAsync(Guid id, ChecklistItemUpdateRequest request, CancellationToken cancellationToken)
     {
-        var item = db.ChecklistItems.FirstOrDefault(x => x.Id == id);
+        var item = await db.FirstOrDefaultAsync(db.ChecklistItems.Where(x => x.Id == id), cancellationToken);
         if (item is null) return Result<ChecklistItemResponse>.Failure(Error.NotFound("Checklist item not found."));
+
+        if (!await permissions.CanAccessChecklistItemAsync(id, currentUser.UserId, cancellationToken))
+        {
+            return Result<ChecklistItemResponse>.Failure(Error.Forbidden("You cannot edit this checklist item."));
+        }
 
         item.Text = request.Text;
         item.IsCompleted = request.IsCompleted;
