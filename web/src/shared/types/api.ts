@@ -1,0 +1,41 @@
+export type AuthUser = { id: string; email: string; displayName?: string | null };
+export type AuthWorkspace = { id: string; name: string; type: string; role: string };
+export type AuthResponse = { accessToken: string; user: AuthUser; workspaces: AuthWorkspace[] };
+export type PagedResult<T> = { items: T[]; page: number; pageSize: number; totalCount: number };
+export type Workspace = { id: string; name: string; description?: string | null; ownerId: string };
+export type Project = { id: string; workspaceId: string; name: string; description?: string | null };
+export type Board = { id: string; projectId: string; name: string };
+export type ProjectOverview = {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string | null;
+  boards: Array<{ id: string; name: string; order: number; columnsCount: number; tasksCount: number }>;
+  notes: Array<{ id: string; title: string; contentMarkdown: string; createdAtUtc: string }>;
+  stats: { totalTasks: number; completedTasks: number; overdueTasks: number };
+};
+export type KanbanBoard = { id: string; projectId: string; name: string; columns: KanbanColumn[] };
+export type KanbanColumn = { id: string; name: string; order: number; tasks: KanbanTask[] };
+export type KanbanTask = {
+  id: string;
+  projectId: string;
+  boardColumnId: string;
+  parentTaskItemId?: string | null;
+  title: string;
+  description?: string | null;
+  status: string;
+  priority: string;
+  deadlineUtc?: string | null;
+  order: number;
+  labels: Array<{ id: string; name: string; color: string }>;
+  checklist: { total: number; completed: number };
+  subtasks: { total: number; completed: number };
+  commentsCount: number;
+  attachmentsCount: number;
+};
+export type TaskDetails = KanbanTask & {
+  checklistItems: Array<{ id: string; text: string; isCompleted: boolean; order: number }>;
+  comments: Array<{ id: string; authorId: string; body: string; createdAtUtc: string }>;
+  attachments: Array<{ id: string; fileName: string; contentType: string; url: string; sizeBytes: number }>;
+  subtasks: KanbanTask[];
+};

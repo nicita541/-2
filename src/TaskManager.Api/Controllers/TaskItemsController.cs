@@ -29,6 +29,10 @@ public sealed class TaskItemsController(ITaskItemService service) : ApiControlle
     public async Task<ActionResult<TaskItemResponse>> Move(Guid id, TaskItemMoveRequest request, CancellationToken cancellationToken)
         => ToActionResult(await service.MoveAsync(id, request, cancellationToken));
 
+    [HttpPost("{id:guid}/move")]
+    public async Task<ActionResult<TaskItemResponse>> DragMove(Guid id, TaskItemDragMoveRequest request, CancellationToken cancellationToken)
+        => ToActionResult(await service.MoveAsync(id, request, cancellationToken));
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         => ToNoContentResult(await service.SoftDeleteAsync(id, cancellationToken));

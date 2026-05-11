@@ -136,6 +136,48 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
         return Result<TaskItemResponse>.Success(Map(taskItem));
     }
 
+    public async Task<Result<TaskItemResponse>> MoveAsync(Guid id, TaskItemDragMoveRequest request, CancellationToken cancellationToken)
+    {
+        var taskItem = await db.FirstOrDefaultAsync(db.TaskItems.Where(x => x.Id == id), cancellationToken);
+        if (taskItem is null) return Result<TaskItemResponse>.Failure(Error.NotFound("Task item not found."));
+
+        if (!await permissions.CanEditTaskItemAsync(id, currentUser.UserId, cancellationToken))
+        {
+            return Result<TaskItemResponse>.Failure(Error.Forbidden("You cannot move this task item."));
+        }
+
+        var targetColumnProjectId = await GetColumnProjectIdAsync(request.TargetBoardColumnId, cancellationToken);
+        if (targetColumnProjectId != taskItem.ProjectId)
+        {
+            return Result<TaskItemResponse>.Failure(Error.Forbidden("Target column belongs to another project."));
+        }
+
+        if (request.TargetParentTaskItemId == id)
+        {
+            return Result<TaskItemResponse>.Failure(Error.Conflict("Task item cannot be moved into itself."));
+        }
+
+        if (request.TargetParentTaskItemId.HasValue)
+        {
+            var parent = await db.FirstOrDefaultAsync(db.TaskItems.Where(x => x.Id == request.TargetParentTaskItemId.Value), cancellationToken);
+            if (parent is null || parent.ProjectId != taskItem.ProjectId)
+            {
+                return Result<TaskItemResponse>.Failure(Error.Forbidden("Target parent task belongs to another project."));
+            }
+
+            if (await WouldCreateCycleAsync(id, parent.Id, cancellationToken))
+            {
+                return Result<TaskItemResponse>.Failure(Error.Conflict("Move would create a cyclic subtask tree."));
+            }
+        }
+
+        taskItem.BoardColumnId = request.TargetBoardColumnId;
+        taskItem.ParentTaskItemId = request.TargetParentTaskItemId;
+        taskItem.Position = request.NewOrder;
+        await db.SaveChangesAsync(cancellationToken);
+        return Result<TaskItemResponse>.Success(Map(taskItem));
+    }
+
     public async Task<Result<PagedResult<TaskItemResponse>>> GetByColumnAsync(Guid boardColumnId, Guid? parentTaskItemId, int page, int pageSize, CancellationToken cancellationToken)
     {
         if (!await permissions.CanAccessColumnAsync(boardColumnId, currentUser.UserId, cancellationToken))
@@ -154,6 +196,23 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
 
     private async Task<Guid> GetColumnProjectIdAsync(Guid boardColumnId, CancellationToken cancellationToken) =>
         await db.FirstOrDefaultAsync(db.BoardColumns.Where(x => x.Id == boardColumnId).Select(x => x.Board!.ProjectId), cancellationToken);
+
+    private async Task<bool> WouldCreateCycleAsync(Guid movingTaskId, Guid targetParentTaskId, CancellationToken cancellationToken)
+    {
+        var currentParentId = targetParentTaskId;
+        while (currentParentId != Guid.Empty)
+        {
+            if (currentParentId == movingTaskId) return true;
+
+            var next = await db.FirstOrDefaultAsync(
+                db.TaskItems.Where(x => x.Id == currentParentId).Select(x => x.ParentTaskItemId),
+                cancellationToken);
+
+            currentParentId = next ?? Guid.Empty;
+        }
+
+        return false;
+    }
 
     private static TaskItemResponse Map(TaskItem taskItem) =>
         new(taskItem.Id, taskItem.ProjectId, taskItem.BoardColumnId, taskItem.ParentTaskItemId, taskItem.Title, taskItem.Description, taskItem.Position, taskItem.DueDateUtc, taskItem.AssigneeId);

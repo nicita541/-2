@@ -6,6 +6,11 @@ namespace TaskManager.Api.Controllers;
 
 public sealed class AuthController(IAuthService authService) : ApiControllerBase
 {
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<CurrentUserResponse>> Me(CancellationToken cancellationToken) =>
+        ToActionResult(await authService.GetCurrentUserAsync(cancellationToken));
+
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {

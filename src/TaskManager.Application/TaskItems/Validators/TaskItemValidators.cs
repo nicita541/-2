@@ -43,3 +43,14 @@ public sealed class TaskItemMoveRequestValidator : IRequestValidator<TaskItemMov
         return errors;
     }
 }
+
+public sealed class TaskItemDragMoveRequestValidator : IRequestValidator<TaskItemDragMoveRequest>
+{
+    public IReadOnlyList<string> Validate(TaskItemDragMoveRequest request)
+    {
+        var errors = new List<string>();
+        if (request.TargetBoardColumnId == Guid.Empty) errors.Add("TargetBoardColumnId is required.");
+        if (request.NewOrder < 0) errors.Add("NewOrder must be greater than or equal to 0.");
+        return errors;
+    }
+}

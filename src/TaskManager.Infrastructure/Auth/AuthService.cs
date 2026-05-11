@@ -6,7 +6,7 @@ using TaskManager.Domain.Entities;
 
 namespace TaskManager.Infrastructure.Auth;
 
-public sealed class AuthService(IApplicationDbContext db, IPasswordHasher passwordHasher, ITokenService tokenService) : IAuthService
+public sealed class AuthService(IApplicationDbContext db, ICurrentUserService currentUser, IPasswordHasher passwordHasher, ITokenService tokenService) : IAuthService
 {
     public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
@@ -18,7 +18,7 @@ public sealed class AuthService(IApplicationDbContext db, IPasswordHasher passwo
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         db.Add(user);
         await db.SaveChangesAsync(cancellationToken);
-        return Result<AuthResponse>.Success(CreateResponse(user));
+        return Result<AuthResponse>.Success(await CreateResponseAsync(user, cancellationToken));
     }
 
     public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
@@ -32,9 +32,28 @@ public sealed class AuthService(IApplicationDbContext db, IPasswordHasher passwo
             return Result<AuthResponse>.Failure(Error.Unauthorized("Invalid email or password."));
         }
 
-        return Result<AuthResponse>.Success(CreateResponse(user));
+        return Result<AuthResponse>.Success(await CreateResponseAsync(user, cancellationToken));
     }
 
-    private AuthResponse CreateResponse(ApplicationUser user) =>
-        new(user.Id, user.Email, user.DisplayName, tokenService.CreateAccessToken(user));
+    public async Task<Result<CurrentUserResponse>> GetCurrentUserAsync(CancellationToken cancellationToken)
+    {
+        var user = await db.FirstOrDefaultAsync(db.Users.Where(x => x.Id == currentUser.UserId), cancellationToken);
+        if (user is null) return Result<CurrentUserResponse>.Failure(Error.Unauthorized());
+
+        var workspaces = await GetWorkspaceDtosAsync(user.Id, cancellationToken);
+        return Result<CurrentUserResponse>.Success(new CurrentUserResponse(user.Id, user.Email, user.DisplayName, workspaces));
+    }
+
+    private async Task<AuthResponse> CreateResponseAsync(ApplicationUser user, CancellationToken cancellationToken)
+    {
+        var workspaces = await GetWorkspaceDtosAsync(user.Id, cancellationToken);
+        return new(user.Id, user.Email, user.DisplayName, tokenService.CreateAccessToken(user), new AuthUserDto(user.Id, user.Email, user.DisplayName), workspaces);
+    }
+
+    private async Task<IReadOnlyList<AuthWorkspaceDto>> GetWorkspaceDtosAsync(Guid userId, CancellationToken cancellationToken) =>
+        await db.ToListAsync(
+            db.WorkspaceMembers
+                .Where(x => x.UserId == userId)
+                .Select(x => new AuthWorkspaceDto(x.Workspace!.Id, x.Workspace.Name, x.Role == Domain.Enums.WorkspaceRoleType.Owner ? "Personal" : "Team", x.Role.ToString())),
+            cancellationToken);
 }

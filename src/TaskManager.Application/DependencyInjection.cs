@@ -17,6 +17,7 @@ using TaskManager.Application.Comments.Dtos;
 using TaskManager.Application.Comments.Services;
 using TaskManager.Application.Comments.Validators;
 using TaskManager.Application.Common.Validation;
+using TaskManager.Application.Frontend.Services;
 using TaskManager.Application.Labels.Dtos;
 using TaskManager.Application.Labels.Services;
 using TaskManager.Application.Labels.Validators;
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IAttachmentService, AttachmentService>();
         services.AddScoped<ILabelService, LabelService>();
         services.AddScoped<IChecklistService, ChecklistService>();
+        services.AddScoped<IFrontendReadService, FrontendReadService>();
         services.AddScoped<IRequestValidator<RegisterRequest>, RegisterRequestValidator>();
         services.AddScoped<IRequestValidator<LoginRequest>, LoginRequestValidator>();
         services.AddScoped<IRequestValidator<WorkspaceCreateRequest>, WorkspaceCreateRequestValidator>();
@@ -55,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IRequestValidator<TaskItemCreateRequest>, TaskItemCreateRequestValidator>();
         services.AddScoped<IRequestValidator<TaskItemUpdateRequest>, TaskItemUpdateRequestValidator>();
         services.AddScoped<IRequestValidator<TaskItemMoveRequest>, TaskItemMoveRequestValidator>();
+        services.AddScoped<IRequestValidator<TaskItemDragMoveRequest>, TaskItemDragMoveRequestValidator>();
         services.AddScoped<IRequestValidator<CommentCreateRequest>, CommentCreateRequestValidator>();
         services.AddScoped<IRequestValidator<AttachmentCreateRequest>, AttachmentCreateRequestValidator>();
         services.AddScoped<IRequestValidator<LabelCreateRequest>, LabelCreateRequestValidator>();
@@ -70,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<IRequestValidator>(provider => provider.GetRequiredService<IRequestValidator<TaskItemCreateRequest>>());
         services.AddScoped<IRequestValidator>(provider => provider.GetRequiredService<IRequestValidator<TaskItemUpdateRequest>>());
         services.AddScoped<IRequestValidator>(provider => provider.GetRequiredService<IRequestValidator<TaskItemMoveRequest>>());
+        services.AddScoped<IRequestValidator>(provider => provider.GetRequiredService<IRequestValidator<TaskItemDragMoveRequest>>());
         services.AddScoped<IRequestValidator>(provider => provider.GetRequiredService<IRequestValidator<CommentCreateRequest>>());
         services.AddScoped<IRequestValidator>(provider => provider.GetRequiredService<IRequestValidator<AttachmentCreateRequest>>());
         services.AddScoped<IRequestValidator>(provider => provider.GetRequiredService<IRequestValidator<LabelCreateRequest>>());

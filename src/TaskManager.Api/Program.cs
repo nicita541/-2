@@ -11,6 +11,7 @@ using TaskManager.Infrastructure;
 using TaskManager.Infrastructure.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
+const string CorsPolicyName = "Frontend";
 
 builder.Services.AddControllers()
     .AddMvcOptions(options => options.Filters.Add<RequestValidationFilter>())
@@ -79,6 +80,16 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+    var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? ["http://localhost:5173", "http://127.0.0.1:5173"];
+
+    options.AddPolicy(CorsPolicyName, policy => policy
+        .WithOrigins(origins)
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
 
 var app = builder.Build();
 
@@ -89,6 +100,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -7,3 +7,5 @@ obj/
 *.nupkg
 .env
 appsettings.Production.json
+node_modules/
+dist/

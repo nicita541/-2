@@ -39,6 +39,24 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
 
         Assert.NotEqual(Guid.Empty, task.Id);
         Assert.Equal(project.Id, task.ProjectId);
+
+        var overview = await client.GetFromJsonAsync<ProjectOverviewResponse>($"/api/projects/{project.Id}/overview");
+        Assert.Equal(project.Id, overview!.Id);
+
+        var kanban = await client.GetFromJsonAsync<KanbanResponse>($"/api/boards/{board.Id}/kanban");
+        Assert.Single(kanban!.Columns);
+        Assert.Single(kanban.Columns[0].Tasks);
+
+        var details = await client.GetFromJsonAsync<TaskDetailsResponse>($"/api/taskitems/{task.Id}/details");
+        Assert.Equal(task.Id, details!.Id);
+
+        var moved = await PostAsync<TaskItemResponse>(client, $"/api/taskitems/{task.Id}/move", new
+        {
+            targetBoardColumnId = column.Id,
+            targetParentTaskItemId = (Guid?)null,
+            newOrder = 2
+        });
+        Assert.Equal(task.Id, moved.Id);
     }
 
     [Fact]
@@ -71,6 +89,8 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
         Assert.Equal(HttpStatusCode.Forbidden, (await outsiderClient.GetAsync($"/api/projects?workspaceId={workspace.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await outsiderClient.GetAsync($"/api/boards?projectId={project.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await outsiderClient.GetAsync($"/api/taskitems/{task.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await outsiderClient.GetAsync($"/api/boards/{board.Id}/kanban")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await outsiderClient.GetAsync($"/api/taskitems/{task.Id}/details")).StatusCode);
 
         var createInForeignColumn = await outsiderClient.PostAsJsonAsync("/api/taskitems", new
         {
@@ -84,6 +104,14 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
             assigneeId = (Guid?)null
         });
         Assert.Equal(HttpStatusCode.Forbidden, createInForeignColumn.StatusCode);
+
+        var moveInForeignColumn = await outsiderClient.PostAsJsonAsync($"/api/taskitems/{task.Id}/move", new
+        {
+            targetBoardColumnId = column.Id,
+            targetParentTaskItemId = (Guid?)null,
+            newOrder = 1
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, moveInForeignColumn.StatusCode);
     }
 
     [Fact]
@@ -135,4 +163,8 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
     private sealed record EntityResponse(Guid Id);
     private sealed record TaskItemResponse(Guid Id, Guid ProjectId);
     private sealed record PagedResponse<T>(IReadOnlyList<T> Items);
+    private sealed record ProjectOverviewResponse(Guid Id);
+    private sealed record KanbanResponse(IReadOnlyList<KanbanColumn> Columns);
+    private sealed record KanbanColumn(IReadOnlyList<TaskItemResponse> Tasks);
+    private sealed record TaskDetailsResponse(Guid Id);
 }
