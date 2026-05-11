@@ -170,6 +170,70 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
         Assert.Empty(list.Items);
     }
 
+    [Fact]
+    public async Task Synced_Metadata_Fields_And_Task_Details_Collections_Are_Persisted()
+    {
+        using var client = _factory.CreateClient();
+        var auth = await RegisterAsync(client, "sync@example.com");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+
+        var workspace = await PostAsync<WorkspaceResponse>(client, "/api/workspaces", new { name = "Team ws", description = "", type = "Team" });
+        Assert.Equal("Team", workspace.Type);
+
+        var project = await PostAsync<ProjectResponse>(client, "/api/projects", new
+        {
+            workspaceId = workspace.Id,
+            name = "Sync project",
+            description = "Description",
+            color = "#123456",
+            icon = "rocket",
+            coverUrl = "https://example.com/cover.png",
+            status = "OnHold",
+            isArchived = false
+        });
+        Assert.Equal("#123456", project.Color);
+        Assert.Equal("rocket", project.Icon);
+        Assert.Equal("OnHold", project.Status);
+
+        var board = await PostAsync<EntityResponse>(client, "/api/boards", new { projectId = project.Id, name = "Board" });
+        var column = await PostAsync<EntityResponse>(client, "/api/columns", new { boardId = board.Id, name = "Todo", position = 0 });
+        var task = await PostAsync<TaskItemResponse>(client, "/api/taskitems", new
+        {
+            projectId = project.Id,
+            boardColumnId = column.Id,
+            parentTaskItemId = (Guid?)null,
+            title = "Sync task",
+            description = "",
+            position = 0,
+            dueDateUtc = DateTime.UtcNow.AddDays(1),
+            assigneeId = (Guid?)null,
+            status = "InProgress",
+            priority = "High"
+        });
+
+        Assert.Equal("InProgress", task.Status);
+        Assert.Equal("High", task.Priority);
+
+        await PostAsync<EntityResponse>(client, $"/api/taskitems/{task.Id}/comments", new { body = "Comment" });
+        var checklist = await PostAsync<ChecklistResponse>(client, $"/api/taskitems/{task.Id}/checklist", new { text = "Check", position = 0 });
+        await PostAsync<ChecklistResponse>(client, $"/api/checklist/{checklist.Id}/toggle", new { });
+        var label = await PostAsync<LabelResponse>(client, $"/api/projects/{project.Id}/labels", new { boardId = board.Id, name = "Backend", colorHex = "#22c55e" });
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync($"/api/taskitems/{task.Id}/labels/{label.Id}", null)).StatusCode);
+        var note = await PostAsync<ProjectNoteResponse>(client, $"/api/projects/{project.Id}/notes", new { title = "Note", contentMarkdown = "Body" });
+        Assert.Equal("Note", note.Title);
+
+        var overview = await client.GetFromJsonAsync<ProjectOverviewResponse>($"/api/projects/{project.Id}/overview");
+        Assert.Equal("#123456", overview!.Color);
+        Assert.NotEmpty(overview.Notes);
+
+        var details = await client.GetFromJsonAsync<TaskDetailsFullResponse>($"/api/taskitems/{task.Id}/details");
+        Assert.Equal("InProgress", details!.Status);
+        Assert.Equal("High", details.Priority);
+        Assert.NotEmpty(details.Comments);
+        Assert.NotEmpty(details.ChecklistItems);
+        Assert.NotEmpty(details.Labels);
+    }
+
     private static async Task<AuthResponse> RegisterAsync(HttpClient client, string email)
     {
         var register = await PostAsync<AuthResponse>(client, "/api/auth/register", new { email, password = "Password123!", displayName = email });
@@ -193,11 +257,17 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
     }
 
     private sealed record AuthResponse(Guid UserId, string AccessToken);
+    private sealed record WorkspaceResponse(Guid Id, string Type);
+    private sealed record ProjectResponse(Guid Id, string? Color, string? Icon, string Status);
     private sealed record EntityResponse(Guid Id);
-    private sealed record TaskItemResponse(Guid Id, Guid ProjectId);
+    private sealed record TaskItemResponse(Guid Id, Guid ProjectId, string? Status, string? Priority);
     private sealed record PagedResponse<T>(IReadOnlyList<T> Items);
-    private sealed record ProjectOverviewResponse(Guid Id);
+    private sealed record ProjectOverviewResponse(Guid Id, string? Color, IReadOnlyList<ProjectNoteResponse> Notes);
     private sealed record KanbanResponse(IReadOnlyList<KanbanColumn> Columns);
     private sealed record KanbanColumn(IReadOnlyList<TaskItemResponse> Tasks);
     private sealed record TaskDetailsResponse(Guid Id);
+    private sealed record TaskDetailsFullResponse(Guid Id, string Status, string Priority, IReadOnlyList<object> Comments, IReadOnlyList<object> ChecklistItems, IReadOnlyList<object> Labels);
+    private sealed record ChecklistResponse(Guid Id);
+    private sealed record LabelResponse(Guid Id);
+    private sealed record ProjectNoteResponse(Guid Id, string Title);
 }

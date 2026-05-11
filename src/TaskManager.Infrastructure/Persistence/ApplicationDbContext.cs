@@ -11,6 +11,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Workspace> WorkspaceEntities => Set<Workspace>();
     public DbSet<WorkspaceMember> WorkspaceMemberEntities => Set<WorkspaceMember>();
     public DbSet<Project> ProjectEntities => Set<Project>();
+    public DbSet<ProjectNote> ProjectNoteEntities => Set<ProjectNote>();
     public DbSet<Board> BoardEntities => Set<Board>();
     public DbSet<BoardColumn> BoardColumnEntities => Set<BoardColumn>();
     public DbSet<TaskItem> TaskItemEntities => Set<TaskItem>();
@@ -24,6 +25,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     IQueryable<Workspace> IApplicationDbContext.Workspaces => WorkspaceEntities;
     IQueryable<WorkspaceMember> IApplicationDbContext.WorkspaceMembers => WorkspaceMemberEntities;
     IQueryable<Project> IApplicationDbContext.Projects => ProjectEntities;
+    IQueryable<ProjectNote> IApplicationDbContext.ProjectNotes => ProjectNoteEntities;
     IQueryable<Board> IApplicationDbContext.Boards => BoardEntities;
     IQueryable<BoardColumn> IApplicationDbContext.BoardColumns => BoardColumnEntities;
     IQueryable<TaskItem> IApplicationDbContext.TaskItems => TaskItemEntities;
@@ -79,6 +81,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         modelBuilder.Entity<Workspace>().HasQueryFilter(x => x.DeletedAtUtc == null);
         modelBuilder.Entity<WorkspaceMember>().HasQueryFilter(x => x.DeletedAtUtc == null);
         modelBuilder.Entity<Project>().HasQueryFilter(x => x.DeletedAtUtc == null);
+        modelBuilder.Entity<ProjectNote>().HasQueryFilter(x => x.DeletedAtUtc == null);
         modelBuilder.Entity<Board>().HasQueryFilter(x => x.DeletedAtUtc == null);
         modelBuilder.Entity<BoardColumn>().HasQueryFilter(x => x.DeletedAtUtc == null);
         modelBuilder.Entity<TaskItem>().HasQueryFilter(x => x.DeletedAtUtc == null);

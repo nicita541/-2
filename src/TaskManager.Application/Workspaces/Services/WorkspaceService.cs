@@ -11,18 +11,18 @@ public sealed class WorkspaceService(IApplicationDbContext db, ICurrentUserServi
     public async Task<Result<WorkspaceResponse>> CreateAsync(WorkspaceCreateRequest request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId;
-        var workspace = new Workspace { Name = request.Name, Description = request.Description, OwnerId = userId };
+        var workspace = new Workspace { Name = request.Name, Description = request.Description, Type = request.Type, OwnerId = userId };
         workspace.Members.Add(new WorkspaceMember { UserId = userId, Role = WorkspaceRoleType.Owner });
         db.Add(workspace);
         await db.SaveChangesAsync(cancellationToken);
-        return Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId));
+        return Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId, workspace.Type));
     }
 
     public async Task<Result<PagedResult<WorkspaceResponse>>> GetMineAsync(int page, int pageSize, CancellationToken cancellationToken)
     {
         var query = db.WorkspaceMembers
             .Where(x => x.UserId == currentUser.UserId)
-            .Select(x => new WorkspaceResponse(x.Workspace!.Id, x.Workspace.Name, x.Workspace.Description, x.Workspace.OwnerId));
+            .Select(x => new WorkspaceResponse(x.Workspace!.Id, x.Workspace.Name, x.Workspace.Description, x.Workspace.OwnerId, x.Workspace.Type));
 
         var result = await PagedResult<WorkspaceResponse>.CreateAsync(query, page, pageSize, db.CountAsync, db.ToListAsync, cancellationToken);
         return Result<PagedResult<WorkspaceResponse>>.Success(result);
@@ -36,7 +36,7 @@ public sealed class WorkspaceService(IApplicationDbContext db, ICurrentUserServi
         var workspace = await db.FirstOrDefaultAsync(db.Workspaces.Where(x => x.Id == workspaceId), cancellationToken);
         return workspace is null
             ? Result<WorkspaceResponse>.Failure(Error.NotFound("Workspace not found."))
-            : Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId));
+            : Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId, workspace.Type));
     }
 
     public async Task<Result<WorkspaceResponse>> UpdateAsync(Guid workspaceId, WorkspaceUpdateRequest request, CancellationToken cancellationToken)
@@ -48,8 +48,9 @@ public sealed class WorkspaceService(IApplicationDbContext db, ICurrentUserServi
         if (workspace is null) return Result<WorkspaceResponse>.Failure(Error.NotFound("Workspace not found."));
         workspace.Name = request.Name;
         workspace.Description = request.Description;
+        workspace.Type = request.Type;
         await db.SaveChangesAsync(cancellationToken);
-        return Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId));
+        return Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId, workspace.Type));
     }
 
     public async Task<Result<bool>> DeleteAsync(Guid workspaceId, CancellationToken cancellationToken)

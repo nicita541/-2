@@ -1,9 +1,13 @@
 export type AuthUser = { id: string; email: string; displayName?: string | null };
-export type AuthWorkspace = { id: string; name: string; type: string; role: string };
+export type WorkspaceType = 'Personal' | 'Team';
+export type ProjectStatus = 'Active' | 'OnHold' | 'Completed' | 'Archived';
+export type TaskStatus = 'Todo' | 'InProgress' | 'Review' | 'Done' | 'Archived';
+export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical';
+export type AuthWorkspace = { id: string; name: string; type: WorkspaceType; role: string };
 export type AuthResponse = { accessToken: string; user: AuthUser; workspaces: AuthWorkspace[] };
 export type PagedResult<T> = { items: T[]; page: number; pageSize: number; totalCount: number };
-export type Workspace = { id: string; name: string; description?: string | null; ownerId: string };
-export type Project = { id: string; workspaceId: string; name: string; description?: string | null };
+export type Workspace = { id: string; name: string; description?: string | null; ownerId: string; type: WorkspaceType };
+export type Project = { id: string; workspaceId: string; name: string; description?: string | null; color?: string | null; icon?: string | null; coverUrl?: string | null; status: ProjectStatus; isArchived: boolean };
 export type Board = { id: string; projectId: string; name: string };
 export type Column = { id: string; boardId: string; name: string; position: number };
 export type TaskItem = {
@@ -16,9 +20,11 @@ export type TaskItem = {
   position: number;
   dueDateUtc?: string | null;
   assigneeId?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
 };
-export type WorkspaceCreateRequest = { name: string; description?: string; type?: 'Personal' | 'Team' };
-export type ProjectCreateRequest = { workspaceId: string; name: string; description?: string; color?: string; icon?: string };
+export type WorkspaceCreateRequest = { name: string; description?: string; type?: WorkspaceType };
+export type ProjectCreateRequest = { workspaceId: string; name: string; description?: string; color?: string; icon?: string; coverUrl?: string | null; status?: ProjectStatus; isArchived?: boolean };
 export type BoardCreateRequest = { projectId: string; name: string };
 export type ColumnCreateRequest = { boardId: string; name: string; position: number; order?: number };
 export type TaskItemCreateRequest = {
@@ -27,8 +33,8 @@ export type TaskItemCreateRequest = {
   parentTaskItemId?: string | null;
   title: string;
   description?: string;
-  status?: string;
-  priority?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
   deadlineUtc?: string | null;
   dueDateUtc?: string | null;
   order?: number;
@@ -40,6 +46,11 @@ export type ProjectOverview = {
   workspaceId: string;
   name: string;
   description?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  coverUrl?: string | null;
+  status: ProjectStatus;
+  isArchived: boolean;
   boards: Array<{ id: string; name: string; order: number; columnsCount: number; tasksCount: number }>;
   notes: Array<{ id: string; title: string; contentMarkdown: string; createdAtUtc: string }>;
   stats: { totalTasks: number; completedTasks: number; overdueTasks: number };
@@ -53,8 +64,8 @@ export type KanbanTask = {
   parentTaskItemId?: string | null;
   title: string;
   description?: string | null;
-  status: string;
-  priority: string;
+  status: TaskStatus;
+  priority: TaskPriority;
   deadlineUtc?: string | null;
   order: number;
   labels: Array<{ id: string; name: string; color: string }>;
@@ -72,3 +83,10 @@ export type TaskDetails = KanbanTask & {
   attachments: Array<{ id: string; fileName: string; contentType: string; url: string; sizeBytes: number }>;
   subtasks: KanbanTask[];
 };
+export type MetadataOptions = {
+  workspaceTypes: Array<{ value: WorkspaceType; label: string }>;
+  projectStatuses: Array<{ value: ProjectStatus; label: string }>;
+  taskStatuses: Array<{ value: TaskStatus; label: string }>;
+  taskPriorities: Array<{ value: TaskPriority; label: string }>;
+};
+export type ProjectNote = { id: string; projectId: string; title: string; contentMarkdown: string; createdAtUtc: string };

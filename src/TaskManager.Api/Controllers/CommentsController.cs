@@ -16,4 +16,18 @@ public sealed class CommentsController(ICommentService service) : ApiControllerB
     [HttpPost]
     public async Task<ActionResult<CommentResponse>> Create(CommentCreateRequest request, CancellationToken cancellationToken) =>
         ToActionResult(await service.CreateAsync(request, cancellationToken));
+
+    [HttpPost("/api/taskitems/{taskItemId:guid}/comments")]
+    public async Task<ActionResult<CommentResponse>> CreateForTask(Guid taskItemId, CreateCommentBody request, CancellationToken cancellationToken) =>
+        ToActionResult(await service.CreateAsync(new CommentCreateRequest(taskItemId, request.Body), cancellationToken));
+
+    [HttpPut("{commentId:guid}")]
+    public async Task<ActionResult<CommentResponse>> Update(Guid commentId, CreateCommentBody request, CancellationToken cancellationToken) =>
+        ToActionResult(await service.UpdateAsync(commentId, request.Body, cancellationToken));
+
+    [HttpDelete("{commentId:guid}")]
+    public async Task<IActionResult> Delete(Guid commentId, CancellationToken cancellationToken) =>
+        ToNoContentResult(await service.DeleteAsync(commentId, cancellationToken));
 }
+
+public sealed record CreateCommentBody(string Body);

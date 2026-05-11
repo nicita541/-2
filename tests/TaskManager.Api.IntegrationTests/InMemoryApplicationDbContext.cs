@@ -10,6 +10,7 @@ internal sealed class InMemoryApplicationDbContext : IApplicationDbContext
     private readonly List<Workspace> _workspaces = [];
     private readonly List<WorkspaceMember> _workspaceMembers = [];
     private readonly List<Project> _projects = [];
+    private readonly List<ProjectNote> _projectNotes = [];
     private readonly List<Board> _boards = [];
     private readonly List<BoardColumn> _columns = [];
     private readonly List<TaskItem> _taskItems = [];
@@ -23,6 +24,7 @@ internal sealed class InMemoryApplicationDbContext : IApplicationDbContext
     public IQueryable<Workspace> Workspaces => _workspaces.Where(x => x.DeletedAtUtc == null).AsQueryable();
     public IQueryable<WorkspaceMember> WorkspaceMembers => _workspaceMembers.Where(x => x.DeletedAtUtc == null).AsQueryable();
     public IQueryable<Project> Projects => _projects.Where(x => x.DeletedAtUtc == null).AsQueryable();
+    public IQueryable<ProjectNote> ProjectNotes => _projectNotes.Where(x => x.DeletedAtUtc == null).AsQueryable();
     public IQueryable<Board> Boards => _boards.Where(x => x.DeletedAtUtc == null).AsQueryable();
     public IQueryable<BoardColumn> BoardColumns => _columns.Where(x => x.DeletedAtUtc == null).AsQueryable();
     public IQueryable<TaskItem> TaskItems => _taskItems.Where(x => x.DeletedAtUtc == null).AsQueryable();
@@ -59,6 +61,10 @@ internal sealed class InMemoryApplicationDbContext : IApplicationDbContext
             case Project project:
                 project.Workspace = _workspaces.FirstOrDefault(x => x.Id == project.WorkspaceId);
                 _projects.Add(project);
+                break;
+            case ProjectNote note:
+                note.Project = _projects.FirstOrDefault(x => x.Id == note.ProjectId);
+                _projectNotes.Add(note);
                 break;
             case Board board:
                 board.Project = _projects.FirstOrDefault(x => x.Id == board.ProjectId);
@@ -132,6 +138,7 @@ internal sealed class InMemoryApplicationDbContext : IApplicationDbContext
             .Concat(_workspaces)
             .Concat(_workspaceMembers)
             .Concat(_projects)
+            .Concat(_projectNotes)
             .Concat(_boards)
             .Concat(_columns)
             .Concat(_taskItems)

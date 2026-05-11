@@ -7,5 +7,7 @@ public interface ILabelService
 {
     Task<Result<LabelResponse>> CreateAsync(LabelCreateRequest request, CancellationToken cancellationToken);
     Task<Result<bool>> AssignAsync(Guid taskItemId, Guid labelId, CancellationToken cancellationToken);
+    Task<Result<bool>> UnassignAsync(Guid taskItemId, Guid labelId, CancellationToken cancellationToken);
     Task<Result<PagedResult<LabelResponse>>> GetByBoardAsync(Guid boardId, int page, int pageSize, CancellationToken cancellationToken);
+    Task<Result<IReadOnlyList<LabelResponse>>> GetByProjectAsync(Guid projectId, CancellationToken cancellationToken);
 }

@@ -8,6 +8,7 @@ public interface IApplicationDbContext
     IQueryable<Workspace> Workspaces { get; }
     IQueryable<WorkspaceMember> WorkspaceMembers { get; }
     IQueryable<Project> Projects { get; }
+    IQueryable<ProjectNote> ProjectNotes { get; }
     IQueryable<Board> Boards { get; }
     IQueryable<BoardColumn> BoardColumns { get; }
     IQueryable<TaskItem> TaskItems { get; }

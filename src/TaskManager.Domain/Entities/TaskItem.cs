@@ -1,4 +1,5 @@
 using TaskManager.Domain.Common;
+using TaskManager.Domain.Enums;
 
 namespace TaskManager.Domain.Entities;
 
@@ -12,6 +13,8 @@ public sealed class TaskItem : Entity
     public TaskItem? ParentTaskItem { get; set; }
     public required string Title { get; set; }
     public string? Description { get; set; }
+    public TaskItemStatus Status { get; set; } = TaskItemStatus.Todo;
+    public TaskPriority Priority { get; set; } = TaskPriority.Medium;
     public int Position { get; set; }
     public DateTime? DueDateUtc { get; set; }
     public Guid? AssigneeId { get; set; }

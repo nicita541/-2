@@ -24,7 +24,7 @@ export function ProjectsPage() {
   const [error, setError] = useState('');
   const projects = useQuery({ queryKey: ['projects', workspaceId], queryFn: () => projectsApi.getByWorkspace(workspaceId), enabled: !!workspaceId });
   const create = useMutation({
-    mutationFn: () => projectsApi.create({ workspaceId, name, description, color, icon }),
+    mutationFn: () => projectsApi.create({ workspaceId, name, description, color, icon, status: 'Active', isArchived: false }),
     onSuccess: () => {
       setCreateOpen(false);
       setName('');
@@ -57,7 +57,7 @@ export function ProjectsPage() {
         {projects.data?.items.map((project) => (
           <Card key={project.id}>
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full" style={{ background: color }} />
+              <span className="h-3 w-3 rounded-full" style={{ background: project.color ?? '#6366f1' }} />
               <h2 className="font-medium">{project.name}</h2>
             </div>
             <p className="mt-1 text-sm text-slate-500">{project.description}</p>

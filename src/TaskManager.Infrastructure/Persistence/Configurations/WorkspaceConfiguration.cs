@@ -11,6 +11,7 @@ public sealed class WorkspaceConfiguration : IEntityTypeConfiguration<Workspace>
         builder.ToTable("workspaces");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.Type).HasConversion<string>().HasMaxLength(50).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(2000);
         builder.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);
     }

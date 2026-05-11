@@ -6,9 +6,11 @@ import type {
   Column,
   ColumnCreateRequest,
   KanbanBoard,
+  MetadataOptions,
   PagedResult,
   Project,
   ProjectCreateRequest,
+  ProjectNote,
   ProjectOverview,
   TaskDetails,
   TaskItem,
@@ -31,12 +33,20 @@ export const workspacesApi = {
   delete: async (id: string) => apiClient.delete(`/api/workspaces/${id}`)
 };
 
+export const metadataApi = {
+  taskOptions: async () => (await apiClient.get<MetadataOptions>('/api/metadata/task-options')).data
+};
+
 export const projectsApi = {
   getByWorkspace: async (workspaceId: string) => (await apiClient.get<PagedResult<Project>>('/api/projects', { params: { workspaceId } })).data,
   create: async (request: ProjectCreateRequest) => (await apiClient.post<Project>('/api/projects', request)).data,
-  update: async (id: string, request: Pick<ProjectCreateRequest, 'name' | 'description'>) => (await apiClient.put<Project>(`/api/projects/${id}`, request)).data,
+  update: async (id: string, request: Omit<ProjectCreateRequest, 'workspaceId'>) => (await apiClient.put<Project>(`/api/projects/${id}`, request)).data,
   delete: async (id: string) => apiClient.delete(`/api/projects/${id}`),
-  overview: async (projectId: string) => (await apiClient.get<ProjectOverview>(`/api/projects/${projectId}/overview`)).data
+  overview: async (projectId: string) => (await apiClient.get<ProjectOverview>(`/api/projects/${projectId}/overview`)).data,
+  notes: async (projectId: string) => (await apiClient.get<ProjectNote[]>(`/api/projects/${projectId}/notes`)).data,
+  createNote: async (projectId: string, request: { title: string; contentMarkdown: string }) => (await apiClient.post<ProjectNote>(`/api/projects/${projectId}/notes`, request)).data,
+  updateNote: async (noteId: string, request: { title: string; contentMarkdown: string }) => (await apiClient.put<ProjectNote>(`/api/project-notes/${noteId}`, request)).data,
+  deleteNote: async (noteId: string) => apiClient.delete(`/api/project-notes/${noteId}`)
 };
 
 export const boardsApi = {
@@ -62,7 +72,13 @@ export const taskItemsApi = {
   move: async (id: string, request: { targetBoardColumnId: string; targetParentTaskItemId?: string | null; newOrder: number }) =>
     (await apiClient.post<TaskItem>(`/api/taskitems/${id}/move`, request)).data,
   createSubtask: async (id: string, request: TaskItemCreateRequest) =>
-    (await apiClient.post<TaskItem>(`/api/taskitems/${id}/subtasks`, normalizeTaskRequest(request))).data
+    (await apiClient.post<TaskItem>(`/api/taskitems/${id}/subtasks`, normalizeTaskRequest(request))).data,
+  addComment: async (id: string, body: string) => (await apiClient.post(`/api/taskitems/${id}/comments`, { body })).data,
+  addChecklist: async (id: string, text: string, position: number) => (await apiClient.post(`/api/taskitems/${id}/checklist`, { text, position })).data,
+  toggleChecklist: async (id: string) => (await apiClient.post(`/api/checklist/${id}/toggle`)).data,
+  createLabel: async (projectId: string, boardId: string, name: string, colorHex: string) => (await apiClient.post(`/api/projects/${projectId}/labels`, { boardId, name, colorHex })).data,
+  addLabel: async (taskId: string, labelId: string) => apiClient.post(`/api/taskitems/${taskId}/labels/${labelId}`),
+  removeLabel: async (taskId: string, labelId: string) => apiClient.delete(`/api/taskitems/${taskId}/labels/${labelId}`)
 };
 
 function normalizeTaskRequest(request: TaskItemCreateRequest) {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { workspacesApi } from '../shared/api/endpoints';
+import { metadataApi, workspacesApi } from '../shared/api/endpoints';
 import { Layout } from '../shared/ui/Layout';
 import { useAuthStore } from '../features/auth/authStore';
 import { Modal } from '../shared/ui/Modal';
@@ -22,6 +22,7 @@ export function WorkspacesPage() {
   const [type, setType] = useState<'Personal' | 'Team'>('Personal');
   const [error, setError] = useState('');
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: workspacesApi.getAll });
+  const metadata = useQuery({ queryKey: ['metadata'], queryFn: metadataApi.taskOptions });
   const create = useMutation({
     mutationFn: () => workspacesApi.create({ name, type }),
     onSuccess: () => {
@@ -74,8 +75,9 @@ export function WorkspacesPage() {
           <div className="space-y-3">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" />
             <Select value={type} onChange={(e) => setType(e.target.value as 'Personal' | 'Team')}>
-              <option value="Personal">Personal</option>
-              <option value="Team">Team</option>
+              {(metadata.data?.workspaceTypes ?? [{ value: 'Personal', label: 'Личное' }, { value: 'Team', label: 'Команда' }]).map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </Select>
             <ErrorMessage message={error} />
             <Button onClick={submit} disabled={create.isPending}>{create.isPending ? 'Создание...' : 'Создать'}</Button>

@@ -44,6 +44,8 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
             ParentTaskItemId = request.ParentTaskItemId,
             Title = request.Title,
             Description = request.Description,
+            Status = request.Status,
+            Priority = request.Priority,
             Position = request.Position,
             DueDateUtc = request.DueDateUtc,
             AssigneeId = request.AssigneeId
@@ -94,6 +96,8 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
         taskItem.ProjectId = request.ProjectId;
         taskItem.Title = request.Title;
         taskItem.Description = request.Description;
+        taskItem.Status = request.Status;
+        taskItem.Priority = request.Priority;
         taskItem.Position = request.Position;
         taskItem.DueDateUtc = request.DueDateUtc;
         taskItem.AssigneeId = request.AssigneeId;
@@ -198,7 +202,7 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
                         (!boardColumnId.HasValue || x.BoardColumnId == boardColumnId.Value) &&
                         x.ParentTaskItemId == parentTaskItemId)
             .OrderBy(x => x.Position)
-            .Select(x => new TaskItemResponse(x.Id, x.ProjectId, x.BoardColumnId, x.ParentTaskItemId, x.Title, x.Description, x.Position, x.DueDateUtc, x.AssigneeId));
+            .Select(x => new TaskItemResponse(x.Id, x.ProjectId, x.BoardColumnId, x.ParentTaskItemId, x.Title, x.Description, x.Position, x.DueDateUtc, x.AssigneeId, x.Status, x.Priority));
 
         var result = await PagedResult<TaskItemResponse>.CreateAsync(query, page, pageSize, db.CountAsync, db.ToListAsync, cancellationToken);
         return Result<PagedResult<TaskItemResponse>>.Success(result);
@@ -225,5 +229,5 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
     }
 
     private static TaskItemResponse Map(TaskItem taskItem) =>
-        new(taskItem.Id, taskItem.ProjectId, taskItem.BoardColumnId, taskItem.ParentTaskItemId, taskItem.Title, taskItem.Description, taskItem.Position, taskItem.DueDateUtc, taskItem.AssigneeId);
+        new(taskItem.Id, taskItem.ProjectId, taskItem.BoardColumnId, taskItem.ParentTaskItemId, taskItem.Title, taskItem.Description, taskItem.Position, taskItem.DueDateUtc, taskItem.AssigneeId, taskItem.Status, taskItem.Priority);
 }

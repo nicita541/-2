@@ -45,6 +45,16 @@ public sealed class LabelService(IApplicationDbContext db, ICurrentUserService c
         return Result<bool>.Success(true);
     }
 
+    public async Task<Result<bool>> UnassignAsync(Guid taskItemId, Guid labelId, CancellationToken cancellationToken)
+    {
+        if (!await permissions.CanEditTaskItemAsync(taskItemId, currentUser.UserId, cancellationToken))
+            return Result<bool>.Failure(Error.Forbidden("You cannot edit this task item."));
+        var link = await db.FirstOrDefaultAsync(db.TaskItemLabels.Where(x => x.TaskItemId == taskItemId && x.LabelId == labelId), cancellationToken);
+        if (link is not null) link.DeletedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return Result<bool>.Success(true);
+    }
+
     public async Task<Result<PagedResult<LabelResponse>>> GetByBoardAsync(Guid boardId, int page, int pageSize, CancellationToken cancellationToken)
     {
         if (!await permissions.CanAccessBoardAsync(boardId, currentUser.UserId, cancellationToken))
@@ -55,5 +65,13 @@ public sealed class LabelService(IApplicationDbContext db, ICurrentUserService c
         var query = db.Labels.Where(x => x.BoardId == boardId).Select(x => new LabelResponse(x.Id, x.BoardId, x.Name, x.ColorHex));
         var result = await PagedResult<LabelResponse>.CreateAsync(query, page, pageSize, db.CountAsync, db.ToListAsync, cancellationToken);
         return Result<PagedResult<LabelResponse>>.Success(result);
+    }
+
+    public async Task<Result<IReadOnlyList<LabelResponse>>> GetByProjectAsync(Guid projectId, CancellationToken cancellationToken)
+    {
+        if (!await permissions.CanAccessProjectAsync(projectId, currentUser.UserId, cancellationToken))
+            return Result<IReadOnlyList<LabelResponse>>.Failure(Error.Forbidden("You cannot access this project."));
+        var labels = await db.ToListAsync(db.Labels.Where(x => x.Board!.ProjectId == projectId).Select(x => new LabelResponse(x.Id, x.BoardId, x.Name, x.ColorHex)), cancellationToken);
+        return Result<IReadOnlyList<LabelResponse>>.Success(labels);
     }
 }

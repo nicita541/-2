@@ -22,6 +22,7 @@ using TaskManager.Application.Labels.Dtos;
 using TaskManager.Application.Labels.Services;
 using TaskManager.Application.Labels.Validators;
 using TaskManager.Application.Projects.Dtos;
+using TaskManager.Application.ProjectNotes.Services;
 using TaskManager.Application.Projects.Services;
 using TaskManager.Application.Projects.Validators;
 using TaskManager.Application.TaskItems.Dtos;
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<ILabelService, LabelService>();
         services.AddScoped<IChecklistService, ChecklistService>();
         services.AddScoped<IFrontendReadService, FrontendReadService>();
+        services.AddScoped<IProjectNoteService, ProjectNoteService>();
         services.AddScoped<IRequestValidator<RegisterRequest>, RegisterRequestValidator>();
         services.AddScoped<IRequestValidator<LoginRequest>, LoginRequestValidator>();
         services.AddScoped<IRequestValidator<WorkspaceCreateRequest>, WorkspaceCreateRequestValidator>();
