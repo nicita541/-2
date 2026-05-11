@@ -57,6 +57,32 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
             newOrder = 2
         });
         Assert.Equal(task.Id, moved.Id);
+
+        var updated = await PutAsync<TaskItemResponse>(client, $"/api/taskitems/{task.Id}", new
+        {
+            projectId = project.Id,
+            boardColumnId = column.Id,
+            parentTaskItemId = (Guid?)null,
+            title = "Updated task",
+            description = "Updated",
+            position = 2,
+            dueDateUtc = (DateTime?)null,
+            assigneeId = (Guid?)null
+        });
+        Assert.Equal(task.Id, updated.Id);
+
+        var subtask = await PostAsync<TaskItemResponse>(client, $"/api/taskitems/{task.Id}/subtasks", new
+        {
+            projectId = project.Id,
+            boardColumnId = column.Id,
+            parentTaskItemId = (Guid?)null,
+            title = "Subtask",
+            description = "",
+            position = 0,
+            dueDateUtc = (DateTime?)null,
+            assigneeId = (Guid?)null
+        });
+        Assert.Equal(project.Id, subtask.ProjectId);
     }
 
     [Fact]
@@ -155,6 +181,13 @@ public sealed class ApiIntegrationTests : IClassFixture<TaskManagerApiFactory>
     private static async Task<T> PostAsync<T>(HttpClient client, string url, object body)
     {
         var response = await client.PostAsJsonAsync(url, body);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<T>())!;
+    }
+
+    private static async Task<T> PutAsync<T>(HttpClient client, string url, object body)
+    {
+        var response = await client.PutAsJsonAsync(url, body);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<T>())!;
     }

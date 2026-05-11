@@ -9,3 +9,4 @@ obj/
 appsettings.Production.json
 node_modules/
 dist/
+*.tsbuildinfo

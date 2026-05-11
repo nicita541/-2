@@ -6,7 +6,7 @@ using TaskManager.Domain.Enums;
 
 namespace TaskManager.Application.Workspaces.Services;
 
-public sealed class WorkspaceService(IApplicationDbContext db, ICurrentUserService currentUser, IPermissionService permissions) : IWorkspaceService
+public sealed class WorkspaceService(IApplicationDbContext db, ICurrentUserService currentUser, IPermissionService permissions, IDateTimeProvider clock) : IWorkspaceService
 {
     public async Task<Result<WorkspaceResponse>> CreateAsync(WorkspaceCreateRequest request, CancellationToken cancellationToken)
     {
@@ -26,6 +26,42 @@ public sealed class WorkspaceService(IApplicationDbContext db, ICurrentUserServi
 
         var result = await PagedResult<WorkspaceResponse>.CreateAsync(query, page, pageSize, db.CountAsync, db.ToListAsync, cancellationToken);
         return Result<PagedResult<WorkspaceResponse>>.Success(result);
+    }
+
+    public async Task<Result<WorkspaceResponse>> GetAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        if (!await permissions.CanAccessWorkspaceAsync(workspaceId, currentUser.UserId, cancellationToken))
+            return Result<WorkspaceResponse>.Failure(Error.Forbidden("You cannot access this workspace."));
+
+        var workspace = await db.FirstOrDefaultAsync(db.Workspaces.Where(x => x.Id == workspaceId), cancellationToken);
+        return workspace is null
+            ? Result<WorkspaceResponse>.Failure(Error.NotFound("Workspace not found."))
+            : Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId));
+    }
+
+    public async Task<Result<WorkspaceResponse>> UpdateAsync(Guid workspaceId, WorkspaceUpdateRequest request, CancellationToken cancellationToken)
+    {
+        if (!await permissions.CanEditWorkspaceAsync(workspaceId, currentUser.UserId, cancellationToken))
+            return Result<WorkspaceResponse>.Failure(Error.Forbidden("You cannot edit this workspace."));
+
+        var workspace = await db.FirstOrDefaultAsync(db.Workspaces.Where(x => x.Id == workspaceId), cancellationToken);
+        if (workspace is null) return Result<WorkspaceResponse>.Failure(Error.NotFound("Workspace not found."));
+        workspace.Name = request.Name;
+        workspace.Description = request.Description;
+        await db.SaveChangesAsync(cancellationToken);
+        return Result<WorkspaceResponse>.Success(new WorkspaceResponse(workspace.Id, workspace.Name, workspace.Description, workspace.OwnerId));
+    }
+
+    public async Task<Result<bool>> DeleteAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        if (!await permissions.CanEditWorkspaceAsync(workspaceId, currentUser.UserId, cancellationToken))
+            return Result<bool>.Failure(Error.Forbidden("You cannot delete this workspace."));
+
+        var workspace = await db.FirstOrDefaultAsync(db.Workspaces.Where(x => x.Id == workspaceId), cancellationToken);
+        if (workspace is null) return Result<bool>.Failure(Error.NotFound("Workspace not found."));
+        workspace.DeletedAtUtc = clock.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return Result<bool>.Success(true);
     }
 
     public async Task<Result<WorkspaceMemberResponse>> AddMemberAsync(Guid workspaceId, AddWorkspaceMemberRequest request, CancellationToken cancellationToken)

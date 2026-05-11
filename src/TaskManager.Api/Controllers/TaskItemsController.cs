@@ -10,8 +10,8 @@ namespace TaskManager.Api.Controllers;
 public sealed class TaskItemsController(ITaskItemService service) : ApiControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<PagedResult<TaskItemResponse>>> Get([FromQuery] Guid boardColumnId, [FromQuery] Guid? parentTaskItemId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default) =>
-        ToActionResult(await service.GetByColumnAsync(boardColumnId, parentTaskItemId, page, pageSize, cancellationToken));
+    public async Task<ActionResult<PagedResult<TaskItemResponse>>> Get([FromQuery] Guid? projectId, [FromQuery] Guid? boardColumnId, [FromQuery] Guid? parentTaskItemId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default) =>
+        ToActionResult(await service.GetAsync(projectId, boardColumnId, parentTaskItemId, page, pageSize, cancellationToken));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<TaskItemResponse>> GetById(Guid id, CancellationToken cancellationToken) =>
@@ -20,6 +20,10 @@ public sealed class TaskItemsController(ITaskItemService service) : ApiControlle
     [HttpPost]
     public async Task<ActionResult<TaskItemResponse>> Create(TaskItemCreateRequest request, CancellationToken cancellationToken) =>
         ToActionResult(await service.CreateAsync(request, cancellationToken));
+
+    [HttpPost("{id:guid}/subtasks")]
+    public async Task<ActionResult<TaskItemResponse>> CreateSubtask(Guid id, TaskItemCreateRequest request, CancellationToken cancellationToken) =>
+        ToActionResult(await service.CreateSubtaskAsync(id, request, cancellationToken));
 
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<TaskItemResponse>> Update(Guid id, TaskItemUpdateRequest request, CancellationToken cancellationToken)

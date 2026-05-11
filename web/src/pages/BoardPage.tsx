@@ -1,65 +1,287 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { endpoints } from '../shared/api/endpoints';
+import { boardsApi, columnsApi, taskItemsApi } from '../shared/api/endpoints';
+import { getApiErrorMessage } from '../shared/api/apiClient';
 import { Layout } from '../shared/ui/Layout';
-import type { KanbanTask } from '../shared/types/api';
+import { Button } from '../shared/ui/Button';
+import { Input } from '../shared/ui/Input';
+import { Textarea } from '../shared/ui/Textarea';
+import { Select } from '../shared/ui/Select';
+import { Modal } from '../shared/ui/Modal';
+import { SidePanel } from '../shared/ui/SidePanel';
+import { ErrorMessage } from '../shared/ui/ErrorMessage';
+import type { KanbanBoard, KanbanColumn as KanbanColumnType, KanbanTask, TaskDetails } from '../shared/types/api';
 
 export function BoardPage() {
   const { boardId = '' } = useParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [createColumnOpen, setCreateColumnOpen] = useState(false);
+  const [createTaskColumn, setCreateTaskColumn] = useState<KanbanColumnType | null>(null);
+  const [error, setError] = useState('');
   const queryClient = useQueryClient();
-  const board = useQuery({ queryKey: ['kanban', boardId], queryFn: () => endpoints.kanban(boardId), enabled: !!boardId });
-  const taskDetails = useQuery({ queryKey: ['task-details', selectedTaskId], queryFn: () => endpoints.taskDetails(selectedTaskId!), enabled: !!selectedTaskId });
+  const board = useQuery({ queryKey: ['kanban', boardId], queryFn: () => boardsApi.getKanban(boardId), enabled: !!boardId });
   const move = useMutation({
-    mutationFn: ({ taskId, columnId, order }: { taskId: string; columnId: string; order: number }) => endpoints.moveTask(taskId, columnId, order),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kanban', boardId] })
+    mutationFn: ({ taskId, columnId, order }: { taskId: string; columnId: string; order: number }) => taskItemsApi.move(taskId, { targetBoardColumnId: columnId, newOrder: order, targetParentTaskItemId: null }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kanban', boardId] }),
+    onError: (error) => setError(getApiErrorMessage(error))
   });
 
   function onDragEnd(event: DragEndEvent) {
     const taskId = String(event.active.id);
     const columnId = event.over?.id ? String(event.over.id) : undefined;
-    if (taskId && columnId) move.mutate({ taskId, columnId, order: 0 });
+    const targetColumn = board.data?.columns.find((x) => x.id === columnId);
+    if (taskId && targetColumn) move.mutate({ taskId, columnId: targetColumn.id, order: targetColumn.tasks.length });
   }
 
   return (
     <Layout>
-      <h1 className="text-2xl font-semibold">{board.data?.name ?? 'Board'}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">{board.data?.name ?? 'Board'}</h1>
+        <Button onClick={() => setCreateColumnOpen(true)}>Добавить колонку</Button>
+      </div>
+      <ErrorMessage message={error} />
       <DndContext onDragEnd={onDragEnd}>
         <div className="mt-6 flex gap-4 overflow-x-auto pb-4">
-          {board.data?.columns.map((column) => <KanbanColumn key={column.id} column={column} onOpenTask={setSelectedTaskId} />)}
+          {board.data?.columns.map((column) => (
+            <KanbanColumn key={column.id} column={column} onOpenTask={setSelectedTaskId} onCreateTask={setCreateTaskColumn} />
+          ))}
         </div>
       </DndContext>
-      {selectedTaskId && (
-        <div className="fixed inset-y-0 right-0 w-full max-w-xl border-l bg-white p-6 shadow-xl">
-          <button className="mb-4 rounded border px-3 py-2 text-sm" onClick={() => setSelectedTaskId(null)}>Close</button>
-          <h2 className="text-xl font-semibold">{taskDetails.data?.title ?? 'Task'}</h2>
-          <p className="mt-2 text-sm text-slate-600">{taskDetails.data?.description}</p>
-          <h3 className="mt-6 font-medium">Checklist</h3>
-          <div className="mt-2 space-y-2">
-            {taskDetails.data?.checklistItems.map((item) => (
-              <label key={item.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={item.isCompleted} readOnly />
-                {item.text}
-              </label>
-            ))}
-          </div>
-          <h3 className="mt-6 font-medium">Comments</h3>
-          <div className="mt-2 space-y-2 text-sm text-slate-600">
-            {taskDetails.data?.comments.map((comment) => <div key={comment.id} className="rounded bg-slate-50 p-2">{comment.body}</div>)}
-          </div>
-        </div>
-      )}
+      {createColumnOpen && board.data && <CreateColumnModal board={board.data} onClose={() => setCreateColumnOpen(false)} />}
+      {createTaskColumn && board.data && <CreateTaskModal board={board.data} column={createTaskColumn} onClose={() => setCreateTaskColumn(null)} />}
+      {selectedTaskId && board.data && <TaskDetailsPanel board={board.data} taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} />}
     </Layout>
   );
 }
 
-function KanbanColumn({ column, onOpenTask }: { column: { id: string; name: string; tasks: KanbanTask[] }; onOpenTask: (id: string) => void }) {
+function CreateColumnModal({ board, onClose }: { board: KanbanBoard; onClose: () => void }) {
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
+  const create = useMutation({
+    mutationFn: () => columnsApi.create({ boardId: board.id, name, position: board.columns.length }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kanban', board.id] });
+      onClose();
+    },
+    onError: (error) => setError(getApiErrorMessage(error))
+  });
+
+  function submit() {
+    if (!name.trim()) {
+      setError('Введите название колонки.');
+      return;
+    }
+    setError('');
+    create.mutate();
+  }
+
+  return (
+    <Modal title="Добавить колонку" onClose={onClose}>
+      <div className="space-y-3">
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" />
+        <ErrorMessage message={error} />
+        <Button onClick={submit} disabled={create.isPending}>{create.isPending ? 'Создание...' : 'Создать'}</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function CreateTaskModal({ board, column, onClose }: { board: KanbanBoard; column: KanbanColumnType; onClose: () => void }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('Medium');
+  const [deadline, setDeadline] = useState('');
+  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
+  const create = useMutation({
+    mutationFn: () => taskItemsApi.create({
+      projectId: board.projectId,
+      boardColumnId: column.id,
+      parentTaskItemId: null,
+      title,
+      description,
+      priority,
+      status: 'Todo',
+      deadlineUtc: deadline ? new Date(deadline).toISOString() : null,
+      position: column.tasks.length,
+      order: column.tasks.length,
+      assigneeId: null
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kanban', board.id] });
+      onClose();
+    },
+    onError: (error) => setError(getApiErrorMessage(error))
+  });
+
+  function submit() {
+    if (!title.trim()) {
+      setError('Введите название задачи.');
+      return;
+    }
+    setError('');
+    create.mutate();
+  }
+
+  return (
+    <Modal title="Добавить задачу" onClose={onClose}>
+      <div className="space-y-3">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название" />
+        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание" rows={3} />
+        <Select value={priority} onChange={(e) => setPriority(e.target.value)}>
+          <option>Low</option>
+          <option>Medium</option>
+          <option>High</option>
+        </Select>
+        <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+        <ErrorMessage message={error} />
+        <Button onClick={submit} disabled={create.isPending}>{create.isPending ? 'Создание...' : 'Создать'}</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function TaskDetailsPanel({ board, taskId, onClose }: { board: KanbanBoard; taskId: string; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const taskDetails = useQuery({ queryKey: ['task-details', taskId], queryFn: () => taskItemsApi.getDetails(taskId) });
+  const task = taskDetails.data;
+  const [form, setForm] = useState({ title: '', description: '', priority: 'Medium', status: 'Todo', deadline: '' });
+  const [subtaskTitle, setSubtaskTitle] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!task) return;
+    setForm({
+      title: task.title,
+      description: task.description ?? '',
+      priority: task.priority ?? 'Medium',
+      status: task.status ?? 'Todo',
+      deadline: task.deadlineUtc ? task.deadlineUtc.slice(0, 10) : ''
+    });
+  }, [task]);
+
+  const update = useMutation({
+    mutationFn: () => taskItemsApi.update(taskId, {
+      projectId: task!.projectId,
+      boardColumnId: task!.boardColumnId,
+      parentTaskItemId: task!.parentTaskItemId ?? null,
+      title: form.title,
+      description: form.description,
+      priority: form.priority,
+      status: form.status,
+      deadlineUtc: form.deadline ? new Date(form.deadline).toISOString() : null,
+      position: task!.order,
+      order: task!.order,
+      assigneeId: null
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kanban', board.id] });
+      queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
+    },
+    onError: (error) => setError(getApiErrorMessage(error))
+  });
+
+  const remove = useMutation({
+    mutationFn: () => taskItemsApi.delete(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kanban', board.id] });
+      onClose();
+    },
+    onError: (error) => setError(getApiErrorMessage(error))
+  });
+
+  const createSubtask = useMutation({
+    mutationFn: () => taskItemsApi.createSubtask(taskId, {
+      projectId: task!.projectId,
+      boardColumnId: task!.boardColumnId,
+      parentTaskItemId: taskId,
+      title: subtaskTitle,
+      description: '',
+      status: 'Todo',
+      priority: 'Medium',
+      deadlineUtc: null,
+      position: task!.subtasks.length,
+      order: task!.subtasks.length,
+      assigneeId: null
+    }),
+    onSuccess: () => {
+      setSubtaskTitle('');
+      queryClient.invalidateQueries({ queryKey: ['kanban', board.id] });
+      queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
+    },
+    onError: (error) => setError(getApiErrorMessage(error))
+  });
+
+  function save() {
+    if (!form.title.trim()) {
+      setError('Введите название задачи.');
+      return;
+    }
+    setError('');
+    update.mutate();
+  }
+
+  function addSubtask() {
+    if (!subtaskTitle.trim()) {
+      setError('Введите название подзадачи.');
+      return;
+    }
+    setError('');
+    createSubtask.mutate();
+  }
+
+  return (
+    <SidePanel title={task?.title ?? 'Task'} onClose={onClose}>
+      {!task && <div className="text-sm text-slate-500">Загрузка...</div>}
+      {task && (
+        <div className="space-y-4">
+          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} />
+          <div className="grid grid-cols-2 gap-3">
+            <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option>Todo</option>
+              <option>InProgress</option>
+              <option>Done</option>
+            </Select>
+            <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+            </Select>
+          </div>
+          <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+          <ErrorMessage message={error} />
+          <div className="flex gap-2">
+            <Button onClick={save} disabled={update.isPending}>{update.isPending ? 'Сохранение...' : 'Сохранить'}</Button>
+            <Button className="bg-red-600" onClick={() => remove.mutate()} disabled={remove.isPending}>{remove.isPending ? 'Удаление...' : 'Удалить'}</Button>
+          </div>
+          <div>
+            <h3 className="font-medium">Подзадачи</h3>
+            <div className="mt-2 space-y-2">
+              {task.subtasks.map((subtask) => <div key={subtask.id} className="rounded bg-slate-50 p-2 text-sm">{subtask.title}</div>)}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Input value={subtaskTitle} onChange={(e) => setSubtaskTitle(e.target.value)} placeholder="Название подзадачи" />
+              <Button onClick={addSubtask} disabled={createSubtask.isPending}>Добавить</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </SidePanel>
+  );
+}
+
+function KanbanColumn({ column, onOpenTask, onCreateTask }: { column: KanbanColumnType; onOpenTask: (id: string) => void; onCreateTask: (column: KanbanColumnType) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
     <div ref={setNodeRef} className={`min-h-[500px] w-80 shrink-0 rounded border p-3 ${isOver ? 'bg-indigo-50' : 'bg-slate-100'}`}>
-      <h2 className="mb-3 font-medium">{column.name}</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="font-medium">{column.name}</h2>
+        <button className="rounded border bg-white px-2 py-1 text-xs" onClick={() => onCreateTask(column)}>+ Добавить задачу</button>
+      </div>
       <div className="space-y-3">
         {column.tasks.map((task) => <TaskCard key={task.id} task={task} onOpenTask={onOpenTask} />)}
       </div>

@@ -5,6 +5,36 @@ export type PagedResult<T> = { items: T[]; page: number; pageSize: number; total
 export type Workspace = { id: string; name: string; description?: string | null; ownerId: string };
 export type Project = { id: string; workspaceId: string; name: string; description?: string | null };
 export type Board = { id: string; projectId: string; name: string };
+export type Column = { id: string; boardId: string; name: string; position: number };
+export type TaskItem = {
+  id: string;
+  projectId: string;
+  boardColumnId: string;
+  parentTaskItemId?: string | null;
+  title: string;
+  description?: string | null;
+  position: number;
+  dueDateUtc?: string | null;
+  assigneeId?: string | null;
+};
+export type WorkspaceCreateRequest = { name: string; description?: string; type?: 'Personal' | 'Team' };
+export type ProjectCreateRequest = { workspaceId: string; name: string; description?: string; color?: string; icon?: string };
+export type BoardCreateRequest = { projectId: string; name: string };
+export type ColumnCreateRequest = { boardId: string; name: string; position: number; order?: number };
+export type TaskItemCreateRequest = {
+  projectId: string;
+  boardColumnId: string;
+  parentTaskItemId?: string | null;
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  deadlineUtc?: string | null;
+  dueDateUtc?: string | null;
+  order?: number;
+  position: number;
+  assigneeId?: string | null;
+};
 export type ProjectOverview = {
   id: string;
   workspaceId: string;
@@ -34,6 +64,9 @@ export type KanbanTask = {
   attachmentsCount: number;
 };
 export type TaskDetails = KanbanTask & {
+  boardColumnId: string;
+  parentTaskItemId?: string | null;
+  description?: string | null;
   checklistItems: Array<{ id: string; text: string; isCompleted: boolean; order: number }>;
   comments: Array<{ id: string; authorId: string; body: string; createdAtUtc: string }>;
   attachments: Array<{ id: string; fileName: string; contentType: string; url: string; sizeBytes: number }>;

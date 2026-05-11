@@ -53,6 +53,9 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
         return Result<TaskItemResponse>.Success(Map(taskItem));
     }
 
+    public Task<Result<TaskItemResponse>> CreateSubtaskAsync(Guid parentTaskItemId, TaskItemCreateRequest request, CancellationToken cancellationToken) =>
+        CreateAsync(request with { ParentTaskItemId = parentTaskItemId }, cancellationToken);
+
     public async Task<Result<TaskItemResponse>> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         if (!await permissions.CanAccessTaskItemAsync(id, currentUser.UserId, cancellationToken))
@@ -178,15 +181,22 @@ public sealed class TaskItemService(IApplicationDbContext db, ICurrentUserServic
         return Result<TaskItemResponse>.Success(Map(taskItem));
     }
 
-    public async Task<Result<PagedResult<TaskItemResponse>>> GetByColumnAsync(Guid boardColumnId, Guid? parentTaskItemId, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<Result<PagedResult<TaskItemResponse>>> GetAsync(Guid? projectId, Guid? boardColumnId, Guid? parentTaskItemId, int page, int pageSize, CancellationToken cancellationToken)
     {
-        if (!await permissions.CanAccessColumnAsync(boardColumnId, currentUser.UserId, cancellationToken))
+        if (boardColumnId.HasValue && !await permissions.CanAccessColumnAsync(boardColumnId.Value, currentUser.UserId, cancellationToken))
         {
             return Result<PagedResult<TaskItemResponse>>.Failure(Error.Forbidden("You cannot access this column."));
         }
 
+        if (projectId.HasValue && !await permissions.CanAccessProjectAsync(projectId.Value, currentUser.UserId, cancellationToken))
+        {
+            return Result<PagedResult<TaskItemResponse>>.Failure(Error.Forbidden("You cannot access this project."));
+        }
+
         var query = db.TaskItems
-            .Where(x => x.BoardColumnId == boardColumnId && x.ParentTaskItemId == parentTaskItemId)
+            .Where(x => (!projectId.HasValue || x.ProjectId == projectId.Value) &&
+                        (!boardColumnId.HasValue || x.BoardColumnId == boardColumnId.Value) &&
+                        x.ParentTaskItemId == parentTaskItemId)
             .OrderBy(x => x.Position)
             .Select(x => new TaskItemResponse(x.Id, x.ProjectId, x.BoardColumnId, x.ParentTaskItemId, x.Title, x.Description, x.Position, x.DueDateUtc, x.AssigneeId));
 
